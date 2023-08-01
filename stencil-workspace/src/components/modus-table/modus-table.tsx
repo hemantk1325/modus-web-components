@@ -41,6 +41,7 @@ import ModusTablePanelOptions from './models/modus-table-panel-options';
 import ModusTableDisplayOptions from './models/modus-table-display-options';
 import ColumnDragState from './models/column-drag-state.model';
 import { ModusTableSortingState } from './models';
+import { ModusColumnDataType } from './enums/modus-column-data-type';
 
 /**
  * @slot customFooter - Slot for custom footer.
@@ -60,7 +61,6 @@ export class ModusTable {
       this.table.options.columns = this.columns;
     }
   }
-
   /** (Required) To display data in the table. */
   @Prop({ mutable: true }) data!: unknown[];
   @Watch('data') onChangeOfData() {
@@ -159,10 +159,12 @@ export class ModusTable {
   @State() columnOrder: string[] = [];
   @State() itemDragState: ColumnDragState;
   @State() dragAndDropObj: TableHeaderDragDrop = new TableHeaderDragDrop();
-
+  @State() parentElement: any;
+  @State() tableElement: any;
   private frozenColumns: string[] = [];
   /** Column reorder variables start */
   private tableHeaderRowRef: HTMLTableRowElement;
+  // private parentElement: HTMLElement;
   private columnResizeEnabled = false;
   private onMouseMove = (event: MouseEvent) => this.handleDragOver(event);
   private onKeyDown = (event: KeyboardEvent) => this.handleKeyDown(event);
@@ -211,6 +213,8 @@ export class ModusTable {
       !this.itemDragState?.targetId && // On Enter click two functions are called handleDragStart and handleKeyDown, if targetId is present we ignore handleDragStart.
       this.itemDragState?.draggedColumnId !== draggedColumnId // If same item is selected we don't update itemDragState.
     ) {
+      console.log(this.frozenColumns);
+
       if (this.frozenColumns.includes(draggedColumnId)) {
         return;
       }
@@ -255,7 +259,11 @@ export class ModusTable {
     this.columnOrder = this.dragAndDropObj.columnOrder;
     this.itemDragState = null;
   }
-
+  componentDidLoad(): void {
+    // Since this method is called after the component and its child elements have been rendered,
+    // we can safely access the refs here.
+    this.initializeTable();
+  }
   componentWillLoad(): void {
     this.columnOrder = this.columns?.map((column) => column.id as string); // Sets column order
     this.onChangeOfRowsExpandable();
@@ -266,6 +274,30 @@ export class ModusTable {
    * Creates a table with some set of options.
    */
   initializeTable(): void {
+    // dummy column
+    // const dummyColumn: ModusTableColumn<unknown> = {
+    //   id: 'dummyColumn',
+    //   accessorKey: 'dummyColumn',
+    //   header: '',
+    //   dataType: ModusColumnDataType.Text,
+    // };
+
+    // Add or remove the dummy column based on the visibility condition
+    // this.columns.push(dummyColumn);
+    // const isDummyColumnVisible = this.parentElement > this.tableElement;
+    // this.toggleColumnVisibility('dummyColumn', isDummyColumnVisible);
+
+    // without column visibility
+
+    // if (isDummyColumnVisible) {
+    //   const existingDummyColumn = this.columns.find((column) => column.id === 'dummyColumn');
+    //   if (!existingDummyColumn) {
+    //     this.columns.push(dummyColumn);
+    //   }
+    // } else {
+    //   this.columns = this.columns.filter((column) => column.id !== 'dummyColumn');
+    // }
+
     const options: TableOptionsResolved<unknown> = {
       data: this.data ?? [],
       columns: (this.columns as ColumnDef<unknown>[]) ?? [],
@@ -359,7 +391,7 @@ export class ModusTable {
    */
   @Method()
   async toggleColumnVisibility(columnId: string, show: boolean): Promise<void> {
-    this.table.getAllLeafColumns().forEach((column) => {
+    this.table?.getAllLeafColumns().forEach((column) => {
       if (column.id === columnId) {
         column.toggleVisibility(show);
       }
@@ -384,7 +416,9 @@ export class ModusTable {
 
     return (
       <Host>
-        <div style={{ maxWidth: this.maxWidth }}>
+        <div
+          style={{ maxWidth: this.maxWidth }}
+          ref={(el: HTMLElement) => (this.parentElement = el?.getBoundingClientRect().width)}>
           {this.showTablePanel && this.panelOptions && (
             <modus-table-panel table={this.table} options={this.panelOptions}>
               <div slot="left-section">
@@ -396,8 +430,19 @@ export class ModusTable {
             </modus-table-panel>
           )}
 
+          {/* code for table background color to fill empty space */}
+          {/* <div
+            style={{
+              background: this.summaryRow
+                ? `linear-gradient(to bottom, #f1f1f6 54px, transparent 54px, transparent calc(100% - 50px), #f1f1f6 calc(100% - 54px))`
+                : `linear-gradient(to bottom, #f1f1f6 54px, transparent 54px)`,
+              // boxShadow: '0px 0px 5px rgba(0, 0, 0, 0.1)',
+            }}> */}
           <div class="table-container" style={{ maxHeight: this.maxHeight, ...borderlessTableStyle }}>
-            <table class={className} style={tableStyle}>
+            <table
+              class={className}
+              style={tableStyle}
+              ref={(el: HTMLElement) => (this.tableElement = el?.getBoundingClientRect().width)}>
               <thead>
                 {headerGroups?.map((headerGroup, index) => (
                   <tr key={headerGroup.id} ref={(element: HTMLTableRowElement) => (this.tableHeaderRowRef = element)}>
@@ -430,9 +475,17 @@ export class ModusTable {
                   return (
                     <tr key={row.id} class={this.hover && 'enable-hover'}>
                       {row.getVisibleCells()?.map((cell, cellIndex) => {
-                        return (
-                          <ModusTableCell cell={cell} row={row} cellIndex={cellIndex} rowsExpandable={this.rowsExpandable} />
-                        );
+                        if (cell.column.id !== 'dummyColumn') {
+                          return (
+                            <ModusTableCell
+                              cell={cell}
+                              row={row}
+                              cellIndex={cellIndex}
+                              rowsExpandable={this.rowsExpandable}
+                            />
+                          );
+                        }
+                        return null;
                       })}
                     </tr>
                   );
@@ -449,14 +502,14 @@ export class ModusTable {
               )}
             </table>
           </div>
-          <slot name="customFooter"></slot>
-          {this.pagination && (
-            <ModusTablePagination table={this.table} totalCount={this.data.length} pageSizeList={this.pageSizeList} />
-          )}
-
-          <ModusTableDragItem draggingState={this.itemDragState}></ModusTableDragItem>
-          <ModusTableDragArrows arrowsPosition={this.itemDragState?.arrowsPosition}></ModusTableDragArrows>
         </div>
+        <slot name="customFooter"></slot>
+        {this.pagination && (
+          <ModusTablePagination table={this.table} totalCount={this.data.length} pageSizeList={this.pageSizeList} />
+        )}
+
+        <ModusTableDragItem draggingState={this.itemDragState}></ModusTableDragItem>
+        {/* </div> */}
       </Host>
     );
   }

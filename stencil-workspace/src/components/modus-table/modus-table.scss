@@ -3,10 +3,13 @@
 .table-container {
   border: $rem-1px $modus-table-border-color solid;
   overflow: auto;
-
+  // width: 100%;
+  // position: relative;
+  // min-width: 0;
+  // background: wheat;
   &::-webkit-scrollbar {
-    height: 0.75em;
-    width: 0.75em;
+    height: 12px;
+    width: 12px;
   }
 
   &::-webkit-scrollbar-track {
@@ -15,7 +18,10 @@
 
   &::-webkit-scrollbar-thumb {
     background-color: $modus-table-scrollbar-thumb-color;
-    border-radius: 0.25em;
+    // border-radius: 0.25em;
+    border: 3px solid transparent;
+    border-radius: 9px;
+    background-clip: content-box;
   }
 }
 
@@ -90,6 +96,11 @@ table {
           }
         }
 
+        .icon-arrow-down,
+        .icon-arrow-up {
+          display: none;
+        }
+
         .can-resize {
           &:focus-visible {
             outline: none;
@@ -112,6 +123,27 @@ table {
 
           &:active {
             cursor: grabbing;
+          }
+        }
+
+        &.drop-allow {
+          overflow: visible;
+
+          svg {
+            display: block;
+            fill: $modus-table-header-drop-color;
+          }
+
+          .icon-arrow-down {
+            left: -8.3px;
+            position: absolute;
+            top: -14px;
+          }
+
+          .icon-arrow-up {
+            bottom: -14px;
+            left: -8.3px;
+            position: absolute;
           }
         }
 
@@ -188,6 +220,9 @@ table {
         bottom: 0;
         box-shadow: 1px -1px $modus-table-header-border-color;
         position: sticky;
+        // background: $modus-table-header-bg;
+        // width: 100vw;
+        // position: absolute;
 
         td {
           background-color: $modus-table-header-bg;
@@ -312,19 +347,5 @@ table {
   .sort-icon-containor,
   svg {
     display: none;
-  }
-}
-
-.drop-allow-arrows {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  left: 0;
-  position: fixed;
-  top: -1px;
-  z-index: 9;
-
-  svg {
-    fill: $modus-table-header-drop-color;
   }
 }
